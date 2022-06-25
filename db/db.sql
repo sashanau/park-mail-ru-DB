@@ -18,6 +18,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forums (
 );
 
 CREATE INDEX IF NOT EXISTS forum_slug ON forums using hash (slug);
+CREATE INDEX IF NOT EXISTS forum_slug ON forums using hash (slug, "user");
 
 CREATE UNLOGGED TABLE IF NOT EXISTS threads (
     id          SERIAL NOT NULL PRIMARY KEY,
@@ -52,6 +53,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS posts (
 -- CREATE INDEX IF NOT EXISTS posts_select_path_path_id ON posts ((path[1]), path, id);
 -- CREATE INDEX IF NOT EXISTS posts_select_path_id ON posts (path, id);
 CREATE INDEX IF NOT EXISTS post_thread_path ON posts (thread, path);
+CREATE INDEX IF NOT EXISTS post_thread_path ON posts (thread);
 CREATE INDEX IF NOT EXISTS post_path_complex ON posts ((path[1]), path);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS votes (
@@ -60,8 +62,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS votes (
     thread_id     BIGINT NOT NULL REFERENCES threads(id),
     nickname        CITEXT NOT NULL REFERENCES users(nickname)
 );
-
-CREATE INDEX IF NOT EXISTS votes_thread_id_nickname ON votes (thread_id, nickname);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS forum_users (
   nickname citext COLLATE "ucs_basic" NOT NULL REFERENCES users (nickname),
@@ -73,6 +73,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forum_users (
 );
 
 CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (forum);
+CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (nickname);
 CREATE INDEX IF NOT EXISTS forum_users_forum_nickname ON forum_users (forum, nickname);
 
 CREATE OR REPLACE FUNCTION update_forum_user() RETURNS TRIGGER AS $$
