@@ -111,18 +111,22 @@ app.get('/api/forum/:slug/users', async (req, res) => {
 app.get('/api/forum/:slug/threads', async (req, res) => {
     const forum = req.params.slug;
 
-    const getForm = await db.query('SELECT * FROM threads WHERE forum = $1;',
-        [forum]);
-    if (getForm.length === 0) {
-        res.status(404).send({message: `Can't find forums with forum ${forum}\n`});
-        return;
-    }
-
     const getThreads = await db.query(`SELECT *
                                        FROM threads
                                        WHERE forum = '${forum}' ${(req.query.since) ? ((req.query.desc === 'true') ? `AND created <= '${req.query.since}'` : `AND created >= '${req.query.since}'`) : ''}
                                        ORDER BY created ${(req.query.desc === 'true') ? 'DESC' : ''} ${(req.query.limit) ? `LIMIT ${req.query.limit}::TEXT::INTEGER` : ''};`
     );
+    if (getThreads.length === 0) {
+        const getForm = await db.query('SELECT * FROM threads WHERE forum = $1;',
+            [forum]);
+        if (getForm.length === 0) {
+            res.status(404).send({message: `Can't find forums with forum ${forum}\n`});
+            return;
+        } else {
+            res.status(200).send([]);
+            return;
+        }
+    }
     res.status(200).send(getThreads);
 });
 
@@ -467,30 +471,30 @@ app.get('/api/post/:id/details', async (req, res) => {
     }
     let endResult = {};
     let result;
-
-    result = await db.query(`SELECT id, parent, author, message, isedited, forum, thread, created FROM posts WHERE id = $1;`, [id]);
-    if (result.length === 0) {
+    const post = await db.query(`SELECT id, parent, author, message, isedited, forum, thread, created FROM posts WHERE id = $1;`, [id]);
+    if (post.length === 0) {
         res.status(404).send({message: `Can't find user with id ${id}\n`});
+        return;
     }
-    result.forEach((elem) => {
+    post.forEach((elem) => {
         elem.parent = Number(elem.parent);
         elem.thread = Number(elem.thread);
         elem.isEdited = elem.isedited;
     });
-    endResult.post = result[0];
+    endResult.post = post[0];
     for (const elem of query){
         if (elem === 'user') {
-            result = await db.query(`SELECT use.nickname, use.fullname, use.about, use.email FROM posts post JOIN users use ON use.nickname = post.author WHERE post.id = $1;`, [id]);
+            result = await db.query(`SELECT nickname, fullname, about, email FROM users WHERE nickname = $1;`, [post[0].author]);
             endResult.author = result[0];
         } else if (elem === 'forum') {
-            result = await db.query(`SELECT foru.title, foru."user", foru.slug, foru.posts, foru.threads FROM posts JOIN forums foru ON foru.slug = posts.forum WHERE posts.id = $1;`, [id]);
+            result = await db.query(`SELECT slug, title, "user", posts, threads FROM forums WHERE slug = $1;`, [post[0].forum]);
             result.forEach((elem) => {
                 elem.posts = Number(elem.posts);
                 elem.threads = Number(elem.threads);
             });
             endResult.forum = result[0];
         } else if (elem === 'thread') {
-            result = await db.query(`SELECT th.id, th.title, th.author, th.forum, th.message, th.votes, th.slug, th.created FROM posts JOIN threads th ON th.id = posts.thread WHERE posts.id = $1;`, [id]);
+            result = await db.query(`SELECT id, title, author, forum, message, votes, slug, created FROM threads WHERE id = $1`, [post[0].thread]);
             endResult.thread = result[0];
         }
     }
@@ -503,27 +507,31 @@ app.post('/api/post/:id/details', async (req, res) => {
     let answer;
     if (message === undefined) {
         answer = await db.query(`SELECT * FROM posts WHERE id = $1;`, [id]);
-    } else {
-        answer = await db.query(`SELECT * FROM posts WHERE id = $1;`, [id]);
         if (answer.length === 0) {
             res.status(404).send({message: `Can't find message with id ${id}\n`});
-        }
-        if (answer[0].message === message) {
+        } else {
             answer[0].thread = Number(answer[0].thread);
             answer[0].parent = Number(answer[0].parent);
             answer[0].isEdited = answer[0].isedited;
             res.status(200).send(answer[0]);
-            return;
         }
-        answer = await db.query(`UPDATE posts SET message = $1, isedited = true WHERE id = $2 RETURNING id, parent, author, message, isEdited, forum, thread, created;`, [message ,id]);
-    }
-    if (answer.length === 0) {
-        res.status(404).send({message: `Can't find message with id ${id}\n`});
     } else {
-        answer[0].thread = Number(answer[0].thread);
-        answer[0].parent = Number(answer[0].parent);
-        answer[0].isEdited = answer[0].isedited;
-        res.status(200).send(answer[0]);
+        answer = await db.query(`UPDATE posts SET message = $1, isedited = true WHERE id = $2 AND message != $1 RETURNING id, parent, author, message, isEdited, forum, thread, created;`, [message ,id]);
+        if (answer.length === 0) {
+            answer = await db.query(`SELECT * FROM posts WHERE id = $1;`, [id]);
+            if (answer.length === 0) {
+                res.status(404).send({message: `Can't find message with id ${id}\n`});
+            } else {
+                answer[0].thread = Number(answer[0].thread);
+                answer[0].parent = Number(answer[0].parent);
+                res.status(200).send(answer[0]);
+            }
+        } else {
+            answer[0].thread = Number(answer[0].thread);
+            answer[0].parent = Number(answer[0].parent);
+            answer[0].isEdited = true;
+            res.status(200).send(answer[0]);
+        }
     }
 });
 
