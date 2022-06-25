@@ -95,16 +95,20 @@ app.post('/api/forum/:slug/create', async (req, res) => {
 app.get('/api/forum/:slug/users', async (req, res) => {
     const slug = req.params.slug;
 
-    const getForm = await db.query('SELECT * FROM forums WHERE slug = $1;',
-        [slug]);
-    if (getForm.length === 0) {
-        res.status(404).send({message: `Can't find forum with slug ${slug}\n`});
-        return;
-    }
     const users = await db.query(`SELECT nickname, fullname, about, email FROM forum_users WHERE forum = $1
         ${(req.query.since !== undefined) ? `${(req.query.desc === 'false' || req.query.desc === undefined) ? `AND nickname > '${req.query.since}'` : `AND nickname < '${req.query.since}'`}` : ''}
                                   ORDER BY nickname ${(req.query.desc === 'false' || req.query.desc === undefined) ? '' : 'DESC'}
                                       LIMIT $2`, [slug, req.query.limit]);
+    if (users.length === 0) {
+        const getForm = await db.query('SELECT * FROM forums WHERE slug = $1;',
+            [slug]);
+        if (getForm.length === 0) {
+            res.status(404).send({message: `Can't find forum with slug ${slug}\n`});
+        } else {
+            res.status(200).send([]);
+        }
+        return;
+    }
     res.status(200).send(users);
 });
 
@@ -184,14 +188,16 @@ app.post('/api/thread/:slug_or_id/create', async (req, res) => {
         let result = [];
         const nowDate = new Date().toUTCString();
         let i = 0;
+
+        const tmp = await db.query(`SELECT *
+                                    FROM users
+                                    WHERE nickname = $1`, [posts[0].author]);
+        if (tmp.length === 0) {
+            res.status(404).send({message: `Can't find users with nickname ${posts[0].author}\n`});
+            return;
+        }
+
         for (let post of posts) {
-            const tmp = await db.query(`SELECT *
-                                        FROM users
-                                        WHERE nickname = $1`, [post.author]);
-            if (tmp.length === 0) {
-                res.status(404).send({message: `Can't find users with nickname ${post.author}\n`});
-                return;
-            }
             if (post.parent) {
                 const parent = await db.query(`SELECT *
                                                FROM posts
@@ -201,6 +207,7 @@ app.post('/api/thread/:slug_or_id/create', async (req, res) => {
                     return;
                 }
             }
+
             if (i === posts.length - 1) {
                 result += `(${(post.parent) ? post.parent : 0}, '${post.author}', '${post.message}', false, '${have[0].forum}', ${have[0].id}, '${nowDate}')`;
             } else {

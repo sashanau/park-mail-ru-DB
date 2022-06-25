@@ -1,5 +1,12 @@
 CREATE EXTENSION IF NOT EXISTS CITEXT;
 
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS forums CASCADE;
+DROP TABLE IF EXISTS threads CASCADE;
+DROP TABLE IF EXISTS posts CASCADE;
+DROP TABLE IF EXISTS forum_users CASCADE;
+DROP TABLE IF EXISTS votes CASCADE;
+
 CREATE UNLOGGED TABLE IF NOT EXISTS users (
     nickname    CITEXT UNIQUE PRIMARY KEY,
     email       CITEXT UNIQUE NOT NULL,
@@ -8,7 +15,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS users_nickname ON users using hash (nickname);
-CREATE INDEX IF NOT EXISTS user_nickname_email ON users (nickname, email);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS forums (
     slug        CITEXT NOT NULL PRIMARY KEY,
@@ -19,7 +25,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forums (
 );
 
 CREATE INDEX IF NOT EXISTS forum_slug ON forums using hash (slug);
-CREATE INDEX IF NOT EXISTS forum_slug ON forums (slug, "user");
 
 CREATE UNLOGGED TABLE IF NOT EXISTS threads (
     id          SERIAL NOT NULL PRIMARY KEY,
@@ -34,7 +39,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS threads (
 
 CREATE INDEX IF NOT EXISTS thread_slug ON threads using hash (slug);
 CREATE INDEX IF NOT EXISTS thread_forum ON threads using hash (forum);
-CREATE INDEX IF NOT EXISTS thread_created ON threads using hash (created);
 CREATE INDEX IF NOT EXISTS thread_forum_created ON threads (forum, created);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS posts (
@@ -54,8 +58,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS posts (
 -- CREATE INDEX IF NOT EXISTS posts_select_thread_parent_path ON posts (thread, parent, (path[1]));
 -- CREATE INDEX IF NOT EXISTS posts_select_path_path_id ON posts ((path[1]), path, id);
 -- CREATE INDEX IF NOT EXISTS posts_select_path_id ON posts (path, id);
-CREATE INDEX IF NOT EXISTS post_forum_author ON Posts (forum, author);
-CREATE INDEX IF NOT EXISTS post_thread_id ON Posts (thread, id);
 CREATE INDEX IF NOT EXISTS post_thread_path ON posts (thread, path);
 CREATE INDEX IF NOT EXISTS post_thread ON posts (thread);
 CREATE INDEX IF NOT EXISTS post_path_complex ON posts ((path[1]), path);
@@ -79,8 +81,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forum_users (
 );
 
 CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (forum);
-CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (nickname);
-CREATE INDEX IF NOT EXISTS forum_users_forum_nickname ON forum_users (forum, nickname);
 
 CREATE OR REPLACE FUNCTION update_forum_user() RETURNS TRIGGER AS $$
 DECLARE
