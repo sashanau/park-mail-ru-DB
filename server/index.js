@@ -302,11 +302,11 @@ app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
     if (req.query.sort === 'tree') {
         const result = await db.query(`SELECT * 
                                         FROM posts 
-                                        WHERE thread = ${have[0].id} ${(req.query.since !== undefined) ? 
-                                                (req.query.desc === 'false' || req.query.desc === undefined) ?
-                                                        `AND path > (SELECT path FROM posts WHERE id = ${req.query.since})`
-                                                        : `AND path < (SELECT path FROM posts WHERE id = ${req.query.since})`
-                                                : ''}
+                                        WHERE thread = ${have[0].id} ${(req.query.since !== undefined) ?
+            (req.query.desc === 'false' || req.query.desc === undefined) ?
+                `AND path > (SELECT path FROM posts WHERE id = ${req.query.since})`
+                : `AND path < (SELECT path FROM posts WHERE id = ${req.query.since})`
+            : ''}
                                         ORDER BY path ${(req.query.desc === 'false' || req.query.desc === undefined) ? '' : 'DESC'} 
                                         LIMIT ${req.query.limit}::TEXT::INTEGER`);
         result.forEach((elem) => {
@@ -352,9 +352,9 @@ app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
         const result = await db.query(`SELECT *
                                        FROM posts
                                        WHERE thread = ${have[0].id} ${(req.query.since !== undefined) ?
-                                               (req.query.desc === 'false' || req.query.desc === undefined) ? `AND id > ${req.query.since}`
-                                                       : `AND id < ${req.query.since}` :
-                                               ''}
+            (req.query.desc === 'false' || req.query.desc === undefined) ? `AND id > ${req.query.since}`
+                : `AND id < ${req.query.since}` :
+            ''}
                                        ORDER BY id ${(req.query.desc === 'false' || req.query.desc === undefined) ? '' : 'DESC'}
                                            LIMIT ${req.query.limit}::TEXT::INTEGER;`);
         result.forEach((elem) => {
