@@ -49,7 +49,7 @@ app.post('/api/forum/create', async (req, res) => {
 app.get('/api/forum/:slug/details', async (req, res) => {
     const slug = req.params.slug;
 
-    const getForm = await db.query('SELECT * FROM forums WHERE slug = $1;',
+    const getForm = await db.query('SELECT title, "user", slug, posts, threads FROM forums WHERE slug = $1;',
         [slug]);
 
     if (getForm.length === 0) {
@@ -100,7 +100,7 @@ app.get('/api/forum/:slug/users', async (req, res) => {
                                   ORDER BY nickname ${(req.query.desc === 'false' || req.query.desc === undefined) ? '' : 'DESC'}
                                       LIMIT $2`, [slug, req.query.limit]);
     if (users.length === 0) {
-        const getForm = await db.query('SELECT * FROM forums WHERE slug = $1;',
+        const getForm = await db.query('SELECT slug FROM forums WHERE slug = $1;',
             [slug]);
         if (getForm.length === 0) {
             res.status(404).send({message: `Can't find forum with slug ${slug}\n`});
@@ -116,13 +116,13 @@ app.get('/api/forum/:slug/users', async (req, res) => {
 app.get('/api/forum/:slug/threads', async (req, res) => {
     const forum = req.params.slug;
 
-    const getThreads = await db.query(`SELECT *
+    const getThreads = await db.query(`SELECT id, title, author, forum, message, votes, slug, created
                                        FROM threads
                                        WHERE forum = '${forum}' ${(req.query.since) ? ((req.query.desc === 'true') ? `AND created <= '${req.query.since}'` : `AND created >= '${req.query.since}'`) : ''}
                                        ORDER BY created ${(req.query.desc === 'true') ? 'DESC' : ''} ${(req.query.limit) ? `LIMIT ${req.query.limit}::TEXT::INTEGER` : ''};`
     );
     if (getThreads.length === 0) {
-        const getForm = await db.query('SELECT * FROM threads WHERE forum = $1;',
+        const getForm = await db.query('SELECT id FROM threads WHERE forum = $1;',
             [forum]);
         if (getForm.length === 0) {
             res.status(404).send({message: `Can't find forums with forum ${forum}\n`});
@@ -222,7 +222,7 @@ app.post('/api/thread/:slug_or_id/create', async (req, res) => {
         res.status(201).send(resultQuery);
     } catch (error) {
         console.log(error);
-        res.status(201).send({});
+        req.clone();
     }
 });
 
@@ -230,14 +230,14 @@ app.get('/api/thread/:slug_or_id/details', async (req, res) => {
     const slugOrId = req.params.slug_or_id;
     let have;
     if (!isNaN(slugOrId)) {
-        have = await db.query('SELECT * FROM threads WHERE id = $1', [slugOrId]);
+        have = await db.query('SELECT id, title, author, forum, message, votes, slug, created FROM threads WHERE id = $1', [slugOrId]);
         if (have.length === 0) {
             res.status(404).send({message: `Can't find thread with id ${slugOrId}\n`});
             return;
         }
         res.status(200).send(have[0]);
     } else {
-        have = await db.query('SELECT * FROM threads WHERE slug = $1', [slugOrId]);
+        have = await db.query('SELECT id, title, author, forum, message, votes, slug, created FROM threads WHERE slug = $1', [slugOrId]);
         if (have.length === 0) {
             res.status(404).send({message: `Can't find thread with slug ${slugOrId}\n`});
             return;
@@ -286,13 +286,13 @@ app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
     const slugOrId = req.params.slug_or_id;
     let have;
     if (!isNaN(slugOrId)) {
-        have = await db.query('SELECT * FROM threads WHERE id = $1', [slugOrId]);
+        have = await db.query('SELECT id FROM threads WHERE id = $1', [slugOrId]);
         if (have.length === 0) {
             res.status(404).send({message: `Can't find thread with id ${slugOrId}\n`});
             return;
         }
     } else {
-        have = await db.query('SELECT * FROM threads WHERE slug = $1', [slugOrId]);
+        have = await db.query('SELECT id FROM threads WHERE slug = $1', [slugOrId]);
         if (have.length === 0) {
             res.status(404).send({message: `Can't find thread with slug ${slugOrId}\n`});
             return;
@@ -300,7 +300,7 @@ app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
     }
 
     if (req.query.sort === 'tree') {
-        const result = await db.query(`SELECT * 
+        const result = await db.query(`SELECT id, parent, author, message, isEdited, forum, thread, created
                                         FROM posts 
                                         WHERE thread = ${have[0].id} ${(req.query.since !== undefined) ?
             (req.query.desc === 'false' || req.query.desc === undefined) ?
@@ -319,25 +319,25 @@ app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
         let query;
         if (req.query.since === undefined) {
             if (req.query.desc === 'false' || req.query.desc === undefined) {
-                query = await db.query(`SELECT * FROM posts
+                query = await db.query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM posts
                                         WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 ORDER BY id LIMIT $2)
                                         ORDER BY path;`,
                     [have[0].id, req.query.limit]);
             } else {
-                query = await db.query(`SELECT * FROM posts
+                query = await db.query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM posts
                                         WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 ORDER BY id DESC LIMIT $2)
                                         ORDER BY path[1] DESC, path ASC;`,
                     [have[0].id, req.query.limit]);
             }
         } else {
             if (req.query.desc === 'false' || req.query.desc === undefined) {
-                query = await db.query(`SELECT * FROM posts
+                query = await db.query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM posts
 					WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 AND id >
 					(SELECT path[1] FROM posts WHERE id = $2) ORDER BY id LIMIT $3) 
 					ORDER BY path;`,
                     [have[0].id, req.query.since, req.query.limit]);
             } else {
-                query = await db.query(`SELECT * FROM posts
+                query = await db.query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM posts
                                         WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 AND id < (SELECT path[1] FROM posts WHERE id = $2)
                                                           ORDER BY id DESC LIMIT $3) ORDER BY path[1] DESC, path ASC;`,
                     [have[0].id, req.query.since, req.query.limit]);
@@ -349,7 +349,7 @@ app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
         })
         res.status(200).send(query);
     } else {
-        const result = await db.query(`SELECT *
+        const result = await db.query(`SELECT id, parent, author, message, isEdited, forum, thread, created
                                        FROM posts
                                        WHERE thread = ${have[0].id} ${(req.query.since !== undefined) ?
             (req.query.desc === 'false' || req.query.desc === undefined) ? `AND id > ${req.query.since}`
@@ -445,7 +445,7 @@ app.get('/api/user/:nickname/profile', async (req, res) => {
 
 app.post('/api/user/:nickname/profile', async (req, res) => {
     const nickname = req.params.nickname;
-    const user = await db.query('SELECT * FROM users WHERE nickname = $1',
+    const user = await db.query('SELECT nickname, fullname, about, email  FROM users WHERE nickname = $1',
         [nickname]);
     if (user.length === 0) {
         res.status(404).send({message: `Can't find user with nickname ${nickname}\n`});

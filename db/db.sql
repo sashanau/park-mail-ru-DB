@@ -1,3 +1,6 @@
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+
 CREATE EXTENSION IF NOT EXISTS CITEXT;
 
 CREATE UNLOGGED TABLE IF NOT EXISTS users (
@@ -7,8 +10,8 @@ CREATE UNLOGGED TABLE IF NOT EXISTS users (
     about       TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS users_nickname ON users using hash (nickname);
-CREATE INDEX IF NOT EXISTS users_email ON users using hash (email);
+-- CREATE INDEX IF NOT EXISTS users_nickname ON users using hash (nickname);
+-- CREATE INDEX IF NOT EXISTS users_email ON users using hash (email);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS forums (
     slug        CITEXT NOT NULL PRIMARY KEY,
@@ -17,8 +20,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forums (
     threads     BIGINT DEFAULT 0 NOT NULL,
     "user"      CITEXT NOT NULL REFERENCES users(nickname)
 );
-
-CREATE INDEX IF NOT EXISTS forum_slug ON forums using hash (slug);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS threads (
     id          SERIAL NOT NULL PRIMARY KEY,
@@ -49,7 +50,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS posts (
 );
 
 
-CREATE INDEX IF NOT EXISTS post_thread_parent_path ON Posts (thread, parent, (path[1]));
+CREATE INDEX IF NOT EXISTS post_thread_id ON posts using hash (thread);
 CREATE INDEX IF NOT EXISTS post_thread_path ON posts (thread, path);
 CREATE INDEX IF NOT EXISTS post_path_complex ON posts ((path[1]), path);
 
@@ -59,8 +60,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS votes (
     thread_id     BIGINT NOT NULL REFERENCES threads(id),
     nickname        CITEXT NOT NULL REFERENCES users(nickname)
 );
-
-CREATE INDEX IF NOT EXISTS search_user_vote ON Votes (nickname, thread_id, voice);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS forum_users (
   nickname citext COLLATE "ucs_basic" NOT NULL REFERENCES users (nickname),
@@ -72,8 +71,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forum_users (
 );
 
 CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (forum);
-CREATE INDEX IF NOT EXISTS forum_users_nickname ON forum_users using hash (nickname);
-CREATE INDEX IF NOT EXISTS forum_users_forum_nickname ON forum_users (forum, nickname);
 
 CREATE OR REPLACE FUNCTION update_forum_user() RETURNS TRIGGER AS $$
 DECLARE
@@ -146,3 +143,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER update_vote_count_trigger AFTER UPDATE OR INSERT ON votes FOR EACH ROW EXECUTE PROCEDURE update_vote_count();
 
 VACUUM ANALYSE;
+
+-- explain SELECT slug, title, "user", posts, threads FROM forums WHERE slug = '3Q6wNC4CyYc9k';
+-- explain SELECT nickname, fullname, about, email FROM users WHERE nickname = 'tuam.T1ffNf4F885tPM';
+--  SELECT id, parent, author, message, isedited, forum, thread, created FROM posts WHERE id = 764093;
