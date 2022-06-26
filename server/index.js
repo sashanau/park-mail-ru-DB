@@ -1,16 +1,44 @@
 'use strict';
 
-const express = require('express');
-const body = require('body-parser');
-const app = express();
+const app = require('fastify')({
+    // logger: true,
+});
+
+app.addContentTypeParser('application/json', { parseAs: 'string' }, function (req, body, done) {
+    try {
+        let json = { };
+        if(body){
+            json = JSON.parse(body)
+        }
+        done(null, json)
+    } catch (err) {
+        err.statusCode = 400;
+        done(err, undefined)
+    }
+});
+
+// const express = require('express');
+// const body = require('body-parser');
+// const app = express();
 // const morgan = require('morgan');
 // app.use(morgan('dev'));
-app.use(body.json());
+// app.use(body.json());
+
+// const { Pool } = require('pg')
+// const db = new Pool({
+//     user: 'api',
+//     host: 'localhost',
+//     database: 'api',
+//     password: 'password',
+//     port: 5432,
+// })
+
 
 
 // const swaggerUi = require('swagger-ui-express');
 // const YAML = require('yamljs');
 // const swaggerDocument = YAML.load('./server/swagger.yaml');
+
 
 const pgp = require("pg-promise")(/*options*/);
 const db = pgp("postgres://api:password@localhost:5432/api");
@@ -18,7 +46,7 @@ db.connect();
 
 // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-const port = 5000;
+const port = process.env.PORT || 5000;
 
 
 // FORUM
@@ -54,10 +82,8 @@ app.get('/api/forum/:slug/details', async (req, res) => {
         res.status(404).send({message: `Can't find forum with slug ${slug}\n`});
         return;
     }
-    getForm.forEach((elem) => {
-        elem.threads = Number(elem.threads);
-        elem.posts = Number(elem.posts);
-    })
+    getForm[0].threads = Number(getForm[0].threads);
+    getForm[0].posts = Number(getForm[0].posts);
 
     res.status(200).send(getForm[0]);
 });
@@ -280,10 +306,13 @@ app.post('/api/thread/:slug_or_id/details', async (req, res) => {
     }
 });
 
+
+
 app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
     const slugOrId = req.params.slug_or_id;
     let have;
     if (!isNaN(slugOrId)) {
+        // have[0].id = slugOrId;
         have = await db.query('SELECT id FROM threads WHERE id = $1', [slugOrId]);
         if (have.length === 0) {
             res.status(404).send({message: `Can't find thread with id ${slugOrId}\n`});
@@ -432,7 +461,7 @@ app.post('/api/user/:nickname/create', async (req, res) => {
 
 app.get('/api/user/:nickname/profile', async (req, res) => {
     const nickname = req.params.nickname;
-    const user = await db.query('SELECT * FROM users WHERE nickname = $1',
+    const user = await db.query('SELECT nickname, fullname, about, email  FROM users WHERE nickname = $1',
         [nickname]);
     if (user.length === 0) {
         res.status(404).send({message: `Can't find user with nickname ${nickname}\n`});
@@ -538,6 +567,16 @@ app.post('/api/post/:id/details', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`Server listening port ${port}`);
-});
+
+const start = async () => {
+    try {
+        await app.listen({ port })
+    } catch (err) {
+        process.exit(1)
+    }
+}
+start();
+
+// app.listen(port, () => {
+//     console.log(`Server listening port ${port}`);
+// });
