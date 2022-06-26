@@ -6,19 +6,19 @@ const cookie = require('cookie-parser');
 const morgan = require('morgan');
 const app = express();
 
-app.use(morgan('dev'));
+//app.use(morgan('dev'));
 app.use(body.json());
-app.use(cookie());
+//app.use(cookie());
 
-const swaggerUi = require('swagger-ui-express');
-const YAML = require('yamljs');
-const swaggerDocument = YAML.load('./server/swagger.yaml');
+//const swaggerUi = require('swagger-ui-express');
+//const YAML = require('yamljs');
+//const swaggerDocument = YAML.load('./server/swagger.yaml');
 
 const pgp = require("pg-promise")(/*options*/);
 const db = pgp("postgres://api:password@localhost:5432/api");
 db.connect();
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+//app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 const port = 5000;
 
@@ -95,16 +95,21 @@ app.post('/api/forum/:slug/create', async (req, res) => {
 app.get('/api/forum/:slug/users', async (req, res) => {
     const slug = req.params.slug;
 
-    const getForm = await db.query('SELECT * FROM forums WHERE slug = $1;',
-        [slug]);
-    if (getForm.length === 0) {
-        res.status(404).send({message: `Can't find forum with slug ${slug}\n`});
-        return;
-    }
     const users = await db.query(`SELECT nickname, fullname, about, email FROM forum_users WHERE forum = $1
         ${(req.query.since !== undefined) ? `${(req.query.desc === 'false' || req.query.desc === undefined) ? `AND nickname > '${req.query.since}'` : `AND nickname < '${req.query.since}'`}` : ''}
                                   ORDER BY nickname ${(req.query.desc === 'false' || req.query.desc === undefined) ? '' : 'DESC'}
                                       LIMIT $2`, [slug, req.query.limit]);
+    if (users.length === 0) {
+        const getForm = await db.query('SELECT * FROM forums WHERE slug = $1;',
+            [slug]);
+        if (getForm.length === 0) {
+            res.status(404).send({message: `Can't find forum with slug ${slug}\n`});
+            return;
+        } else {
+            res.status(200).send([]);
+            return;
+        }
+    }
     res.status(200).send(users);
 });
 
@@ -184,14 +189,14 @@ app.post('/api/thread/:slug_or_id/create', async (req, res) => {
         let result = [];
         const nowDate = new Date().toUTCString();
         let i = 0;
+        const tmp = await db.query(`SELECT *
+                                    FROM users
+                                    WHERE nickname = $1`, [posts[0].author]);
+        if (tmp.length === 0) {
+            res.status(404).send({message: `Can't find users with nickname ${posts[0].author}\n`});
+            return;
+        }
         for (let post of posts) {
-            const tmp = await db.query(`SELECT *
-                                        FROM users
-                                        WHERE nickname = $1`, [post.author]);
-            if (tmp.length === 0) {
-                res.status(404).send({message: `Can't find users with nickname ${post.author}\n`});
-                return;
-            }
             if (post.parent) {
                 const parent = await db.query(`SELECT *
                                                FROM posts
@@ -302,7 +307,7 @@ app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
                                                         `AND path > (SELECT path FROM posts WHERE id = ${req.query.since})`
                                                         : `AND path < (SELECT path FROM posts WHERE id = ${req.query.since})`
                                                 : ''}
-                                        ORDER BY (path || array[id]) ${(req.query.desc === 'false' || req.query.desc === undefined) ? '' : 'DESC'} 
+                                        ORDER BY path ${(req.query.desc === 'false' || req.query.desc === undefined) ? '' : 'DESC'} 
                                         LIMIT ${req.query.limit}::TEXT::INTEGER`);
         result.forEach((elem) => {
             elem.thread = Number(elem.thread);
@@ -315,26 +320,26 @@ app.get('/api/thread/:slug_or_id/posts', async (req, res) => {
         if (req.query.since === undefined) {
             if (req.query.desc === 'false' || req.query.desc === undefined) {
                 query = await db.query(`SELECT * FROM posts
-                                        WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 ORDER BY id ASC LIMIT $2)
-                                        ORDER BY path ASC, id ASC;`,
+                                        WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 ORDER BY id LIMIT $2)
+                                        ORDER BY path;`,
                     [have[0].id, req.query.limit]);
             } else {
                 query = await db.query(`SELECT * FROM posts
                                         WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 ORDER BY id DESC LIMIT $2)
-                                        ORDER BY path[1] DESC, path ASC, id ASC;`,
+                                        ORDER BY path[1] DESC, path ASC;`,
                     [have[0].id, req.query.limit]);
             }
         } else {
             if (req.query.desc === 'false' || req.query.desc === undefined) {
                 query = await db.query(`SELECT * FROM posts
-					WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 AND path[1] >
-					(SELECT path[1] FROM posts WHERE id = $2) ORDER BY id ASC LIMIT $3) 
-					ORDER BY path ASC, id ASC;`,
+					WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 AND id >
+					(SELECT path[1] FROM posts WHERE id = $2) ORDER BY id LIMIT $3) 
+					ORDER BY path;`,
                     [have[0].id, req.query.since, req.query.limit]);
             } else {
                 query = await db.query(`SELECT * FROM posts
-                                        WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 AND path[1] < (SELECT path[1] FROM posts WHERE id = $2)
-                                                          ORDER BY id DESC LIMIT $3) ORDER BY path[1] DESC, path ASC, id ASC;`,
+                                        WHERE path[1] IN (SELECT id FROM posts WHERE thread = $1 AND parent = 0 AND id < (SELECT path[1] FROM posts WHERE id = $2)
+                                                          ORDER BY id DESC LIMIT $3) ORDER BY path[1] DESC, path ASC;`,
                     [have[0].id, req.query.since, req.query.limit]);
             }
         }

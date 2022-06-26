@@ -8,7 +8,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS users_nickname ON users using hash (nickname);
-CREATE INDEX IF NOT EXISTS user_nickname_email ON users (nickname, email);
+CREATE INDEX IF NOT EXISTS users_email ON users using hash (email);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS forums (
     slug        CITEXT NOT NULL PRIMARY KEY,
@@ -19,7 +19,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forums (
 );
 
 CREATE INDEX IF NOT EXISTS forum_slug ON forums using hash (slug);
-CREATE INDEX IF NOT EXISTS forum_slug ON forums (slug, "user");
 
 CREATE UNLOGGED TABLE IF NOT EXISTS threads (
     id          SERIAL NOT NULL PRIMARY KEY,
@@ -49,15 +48,9 @@ CREATE UNLOGGED TABLE IF NOT EXISTS posts (
     path        int[]  DEFAULT ARRAY[] :: INT[]
 );
 
--- CREATE INDEX IF NOT EXISTS posts_select_thread_path ON posts (thread, path);
--- CREATE INDEX IF NOT EXISTS posts_select_thread_parent ON posts (thread, parent);
--- CREATE INDEX IF NOT EXISTS posts_select_thread_parent_path ON posts (thread, parent, (path[1]));
--- CREATE INDEX IF NOT EXISTS posts_select_path_path_id ON posts ((path[1]), path, id);
--- CREATE INDEX IF NOT EXISTS posts_select_path_id ON posts (path, id);
-CREATE INDEX IF NOT EXISTS post_forum_author ON Posts (forum, author);
-CREATE INDEX IF NOT EXISTS post_thread_id ON Posts (thread, id);
+
+CREATE INDEX IF NOT EXISTS post_thread_parent_path ON Posts (thread, parent, (path[1]));
 CREATE INDEX IF NOT EXISTS post_thread_path ON posts (thread, path);
-CREATE INDEX IF NOT EXISTS post_thread ON posts (thread);
 CREATE INDEX IF NOT EXISTS post_path_complex ON posts ((path[1]), path);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS votes (
