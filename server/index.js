@@ -2,13 +2,11 @@
 
 const express = require('express');
 const body = require('body-parser');
-// const cookie = require('cookie-parser');
-// const morgan = require('morgan');
 const app = express();
-
+// const morgan = require('morgan');
 // app.use(morgan('dev'));
 app.use(body.json());
-// app.use(cookie());
+
 
 // const swaggerUi = require('swagger-ui-express');
 // const YAML = require('yamljs');
