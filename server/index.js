@@ -2,23 +2,23 @@
 
 const express = require('express');
 const body = require('body-parser');
-const cookie = require('cookie-parser');
-const morgan = require('morgan');
+// const cookie = require('cookie-parser');
+// const morgan = require('morgan');
 const app = express();
 
-//app.use(morgan('dev'));
+// app.use(morgan('dev'));
 app.use(body.json());
-//app.use(cookie());
+// app.use(cookie());
 
-//const swaggerUi = require('swagger-ui-express');
-//const YAML = require('yamljs');
-//const swaggerDocument = YAML.load('./server/swagger.yaml');
+// const swaggerUi = require('swagger-ui-express');
+// const YAML = require('yamljs');
+// const swaggerDocument = YAML.load('./server/swagger.yaml');
 
 const pgp = require("pg-promise")(/*options*/);
 const db = pgp("postgres://api:password@localhost:5432/api");
 db.connect();
 
-//app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 const port = 5000;
 

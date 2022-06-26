@@ -72,7 +72,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forum_users (
 );
 
 CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (forum);
-CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (nickname);
+CREATE INDEX IF NOT EXISTS forum_users_nickname ON forum_users using hash (nickname);
 CREATE INDEX IF NOT EXISTS forum_users_forum_nickname ON forum_users (forum, nickname);
 
 CREATE OR REPLACE FUNCTION update_forum_user() RETURNS TRIGGER AS $$
