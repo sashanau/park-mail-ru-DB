@@ -10,8 +10,8 @@ CREATE UNLOGGED TABLE IF NOT EXISTS users (
     about       TEXT NOT NULL
 );
 
--- CREATE INDEX IF NOT EXISTS users_nickname ON users using hash (nickname);
--- CREATE INDEX IF NOT EXISTS users_email ON users using hash (email);
+CREATE INDEX IF NOT EXISTS users_nickname ON users using hash (nickname);
+CREATE INDEX IF NOT EXISTS users_email ON users using hash (email);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS forums (
     slug        CITEXT NOT NULL PRIMARY KEY,
@@ -21,7 +21,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forums (
     "user"      CITEXT NOT NULL REFERENCES users(nickname)
 );
 
--- CREATE INDEX IF NOT EXISTS forums_slug ON forums using hash (slug);
+CREATE INDEX IF NOT EXISTS forums_slug ON forums using hash (slug);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS threads (
     id          SERIAL NOT NULL PRIMARY KEY,
@@ -35,9 +35,9 @@ CREATE UNLOGGED TABLE IF NOT EXISTS threads (
 );
 
 
--- CREATE INDEX IF NOT EXISTS thread_slug ON threads using hash (slug);
--- CREATE INDEX IF NOT EXISTS thread_forum ON threads using hash (forum);
--- CREATE INDEX IF NOT EXISTS thread_forum_created ON threads (forum, created);
+CREATE INDEX IF NOT EXISTS thread_slug ON threads using hash (slug);
+CREATE INDEX IF NOT EXISTS thread_forum ON threads using hash (forum);
+CREATE INDEX IF NOT EXISTS thread_forum_created ON threads (forum, created);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS posts (
     id          SERIAL NOT NULL PRIMARY KEY,
@@ -51,13 +51,13 @@ CREATE UNLOGGED TABLE IF NOT EXISTS posts (
     path        int[]  DEFAULT ARRAY[] :: INT[]
 );
 
--- create index if not exists post_path1 ON posts ((path[1]));
--- create index if not exists post_id_path1 ON posts (id, (path[1]));
--- create index if not exists post_path ON posts (path);
--- CREATE INDEX IF NOT EXISTS post_thread ON posts using hash (thread);
--- CREATE INDEX IF NOT EXISTS post_thread_created_id ON posts (thread, parent, id);
--- CREATE INDEX IF NOT EXISTS post_thread_path ON posts (thread, path);
--- CREATE INDEX IF NOT EXISTS post_thread_path_path ON posts (thread,(path[1]), path);
+create index if not exists post_path1 ON posts ((path[1]));
+create index if not exists post_id_path1 ON posts (id, (path[1]));
+create index if not exists post_path ON posts (path);
+CREATE INDEX IF NOT EXISTS post_thread ON posts using hash (thread);
+CREATE INDEX IF NOT EXISTS post_thread_created_id ON posts (thread, parent, id);
+CREATE INDEX IF NOT EXISTS post_thread_path ON posts (thread, path);
+CREATE INDEX IF NOT EXISTS post_thread_path_path ON posts (thread,(path[1]), path);
 
 CREATE UNLOGGED TABLE IF NOT EXISTS votes (
     voice         SMALLINT NOT NULL,
@@ -75,35 +75,9 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forum_users (
   CONSTRAINT forum_users_key UNIQUE (nickname, forum)
 );
 
--- CREATE INDEX IF NOT EXISTS forum_users_forum_nickname ON forum_users (forum, nickname);
--- CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (forum);
+CREATE INDEX IF NOT EXISTS forum_users_forum_nickname ON forum_users (forum, nickname);
+CREATE INDEX IF NOT EXISTS forum_users_forum ON forum_users using hash (forum);
 
-CREATE INDEX post_first_parent_thread_index ON posts ((posts.path[1]), thread);
-CREATE INDEX post_first_parent_id_index ON posts ((posts.path[1]), id);
-CREATE INDEX post_first_parent_index ON posts ((posts.path[1]));
-CREATE INDEX post_path_index ON posts ((posts.path));
-CREATE INDEX post_thread_index ON posts (thread); -- -
-CREATE INDEX post_thread_id_index ON posts (thread, id); -- +
-
-CREATE INDEX forum_slug_lower_index ON forums (lower(forums.slug));
-
-CREATE INDEX users_nickname_lower_index ON users (lower(users.Nickname));
-CREATE INDEX users_nickname_index ON users ((users.Nickname));
-CREATE INDEX users_email_index ON users (lower(Email));
-
-CREATE INDEX users_forum_user_index ON forum_users (nickname);
-
-CREATE INDEX thread_slug_lower_index ON threads (lower(slug));
-CREATE INDEX thread_slug_index ON threads (slug);
-CREATE INDEX thread_slug_id_index ON threads (lower(slug), id);
-CREATE INDEX thread_forum_lower_index ON threads (lower(forum));
-CREATE INDEX thread_id_forum_index ON threads (id, forum);
-CREATE INDEX thread_created_index ON threads (created);
-
-
--- NEW INDEXES
-CREATE INDEX post_path_id_index ON posts (id, (posts.path));
-CREATE INDEX post_thread_path_id_index ON posts (thread, (posts.parent), id);
 
 
 CREATE OR REPLACE FUNCTION update_forum_user() RETURNS TRIGGER AS $$
